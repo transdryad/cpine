@@ -12,6 +12,8 @@ dependencies = [
 exe = executable(
   'cpine',
   'src/cpine.cpp',
+  'src/server.hpp',
+  'src/server.cpp',
   install : true,
   dependencies : dependencies,
 )
