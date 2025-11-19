@@ -52,8 +52,8 @@ std::string readString(std::vector<char>& bytes, bool eraseFlag) {
 }
 
 int readUShort(std::vector<char>& bytes, bool eraseFlag) {
-    unsigned short native =  ((unsigned short)bytes[0] << 8) | bytes[1];
-    //native = ntohs(native);
+    unsigned short native =  ((unsigned short)bytes[1] << 8) | bytes[0];
+    native = ntohs(native);
     if (eraseFlag) bytes.erase(bytes.begin(), bytes.begin() + 2);
     return (int)native;
 }
