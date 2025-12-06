@@ -27,20 +27,20 @@ Server::Server(std::string ip, std::string port) {
     this->port = port;
 }
 
-int readVarInt(std::vector<char>& bytes, bool eraseFlag) {
+int readVarInt(int sockfd) {
     int value = 0;
     int position = 0;
-    int byteCounter = 0;
     char currentByte;
+    char buffer[3];
     while (true) {
-        currentByte = bytes[byteCounter];
+        recv(sockfd, &buffer, 1, 0);
+        currentByte = buffer[0];
         value |= (currentByte & SEGMENT_BITS) << position;
         position += 7;
-        ++byteCounter;
         if (!(currentByte & CONTINUE_BIT)) break;
     }
     //std::cout << "Position: " << position << std::endl;
-    if (eraseFlag) bytes.erase(bytes.begin(), bytes.begin() + byteCounter);
+    //if (eraseFlag) bytes.erase(bytes.begin(), bytes.begin() + byteCounter);
     return value;
 }
 
@@ -56,7 +56,7 @@ void writeVarInt(std::vector<char>& bytes, int value) {
         value = value >> 7;
     }
 }
-
+/*
 std::string readString(std::vector<char>& bytes, bool eraseFlag) {
     int length = readVarInt(bytes, true);
     std::string output = "";
@@ -66,7 +66,7 @@ std::string readString(std::vector<char>& bytes, bool eraseFlag) {
     if (eraseFlag) bytes.erase(bytes.begin(), bytes.begin() + length);
     return output;
 }
-
+*/
 int readUShort(std::vector<char>& bytes, bool eraseFlag) {
     unsigned short native =  ((unsigned short)bytes[1] << 8) | bytes[0];
     native = ntohs(native);
@@ -80,6 +80,8 @@ int Server::run() {
     int status;
     struct addrinfo hints;
     struct addrinfo *servinfo;
+
+    char cbuffer[2048];
 
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_UNSPEC;
@@ -112,8 +114,10 @@ int Server::run() {
     
     struct addrinfo *client_addr;
     socklen_t addr_size = sizeof(client_addr);
+
+    clients.reserve(20);
     
-    int client = 0;
+    std::vector<Client>::iterator client_iterator = clients.begin();
 
     while (true) { //better way, multiple clients
         clients.emplace_back(accept(sock, (struct sockaddr *)&client_addr, &addr_size), NONE); //try new player
@@ -124,8 +128,33 @@ int Server::run() {
             std::cout << "New client: " << clients.back().sockfd << std::endl;
         }
         //TODO: tick
-        int cfd = clients[client].sockfd;
-        
+        //
+        if (client_iterator == clients.end()) client_iterator = clients.begin(); //loop over clients forever
+        if (clients.empty() || client_iterator == clients.end()) continue;
+
+        int cfd = (*client_iterator).sockfd;
+        //TODO: handle one packet from client.
+
+        int count = recv(cfd, &cbuffer, 2, MSG_PEEK);
+        if (count < 2) {
+            if (count == 0 || (count < 0 && errno != EAGAIN && errno != EWOULDBLOCK)) {
+                clients.erase(client_iterator);
+                //disconnect client, as no data.
+            }
+            continue;
+        }
+
+        int length = readVarInt(cfd);
+        std::cout << length << std::endl;
+        recv(cfd, &cbuffer, length, 0);
+
+        std::cout << "Raw Packet: ";
+        for (int i = 0; i < length; i++) {
+            std::cout << "0x0";
+            printf("%x", cbuffer[i]);
+            std::cout << ", ";
+        }
+        std::cout << std::endl;
         
     }
 
