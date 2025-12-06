@@ -17,60 +17,14 @@
 
 #include "src/server.hpp"
 #include "src/client.hpp"
+#include "src/types.hpp"
 
-#define SEGMENT_BITS 0x7f
-#define CONTINUE_BIT 0x80
+
 //#define MAX_PLAYERS 20
 
 Server::Server(std::string ip, std::string port) {
     this->ip = ip;
     this->port = port;
-}
-
-int readVarInt(int sockfd) {
-    int value = 0;
-    int position = 0;
-    char currentByte;
-    char buffer[1];
-    while (true) {
-        recv(sockfd, &buffer, 1, 0);
-        currentByte = buffer[0];
-        value |= (currentByte & SEGMENT_BITS) << position;
-        position += 7;
-        if (!(currentByte & CONTINUE_BIT)) break;
-    }
-    return value;
-}
-
-void writeVarInt(std::vector<char>& bytes, int value) {
-    while (true) {
-        if ((value & ~SEGMENT_BITS) == 0) {
-            bytes.push_back(value);
-            return;
-        }
-        bytes.push_back((value & SEGMENT_BITS) | CONTINUE_BIT);
-        value = value >> 7;
-    }
-}
-
-std::string readString(int sockfd) {
-    int length = readVarInt(sockfd);
-    std::string output = "";
-    char buffer[1];
-    for (int i = 0; i < length; i++) {
-        recv(sockfd, &buffer, 1, 0);
-        //std::cout << ch << std::endl;
-        output += buffer[0];
-    }
-    return output;
-}
-
-int readUShort(int sockfd) {
-    char bytes[2];
-    recv(sockfd, &bytes, 2, 0);
-    unsigned short native = ((unsigned short)bytes[1] << 8) | bytes[0];
-    native = ntohs(native);
-    return (int)native;
 }
 
 int Server::run() {

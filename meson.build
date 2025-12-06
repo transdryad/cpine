@@ -16,6 +16,8 @@ exe = executable(
   'src/server.cpp',
   'src/client.cpp',
   'src/client.hpp',
+  'src/types.hpp',
+  'src/types.cpp',
   install : true,
   dependencies : dependencies,
 )
