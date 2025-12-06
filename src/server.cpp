@@ -31,7 +31,7 @@ int readVarInt(int sockfd) {
     int value = 0;
     int position = 0;
     char currentByte;
-    char buffer[3];
+    char buffer[1];
     while (true) {
         recv(sockfd, &buffer, 1, 0);
         currentByte = buffer[0];
@@ -39,14 +39,10 @@ int readVarInt(int sockfd) {
         position += 7;
         if (!(currentByte & CONTINUE_BIT)) break;
     }
-    //std::cout << "Position: " << position << std::endl;
-    //if (eraseFlag) bytes.erase(bytes.begin(), bytes.begin() + byteCounter);
     return value;
 }
 
 void writeVarInt(std::vector<char>& bytes, int value) {
-    //int i = 0;
-    //unsigned int uval = (unsigned int)value;
     while (true) {
         if ((value & ~SEGMENT_BITS) == 0) {
             bytes.push_back(value);
@@ -56,21 +52,24 @@ void writeVarInt(std::vector<char>& bytes, int value) {
         value = value >> 7;
     }
 }
-/*
-std::string readString(std::vector<char>& bytes, bool eraseFlag) {
-    int length = readVarInt(bytes, true);
+
+std::string readString(int sockfd) {
+    int length = readVarInt(sockfd);
     std::string output = "";
+    char buffer[1];
     for (int i = 0; i < length; i++) {
-        output += bytes[i];
+        recv(sockfd, &buffer, 1, 0);
+        //std::cout << ch << std::endl;
+        output += buffer[0];
     }
-    if (eraseFlag) bytes.erase(bytes.begin(), bytes.begin() + length);
     return output;
 }
-*/
-int readUShort(std::vector<char>& bytes, bool eraseFlag) {
-    unsigned short native =  ((unsigned short)bytes[1] << 8) | bytes[0];
+
+int readUShort(int sockfd) {
+    char bytes[2];
+    recv(sockfd, &bytes, 2, 0);
+    unsigned short native = ((unsigned short)bytes[1] << 8) | bytes[0];
     native = ntohs(native);
-    if (eraseFlag) bytes.erase(bytes.begin(), bytes.begin() + 2);
     return (int)native;
 }
 
@@ -133,7 +132,6 @@ int Server::run() {
         if (clients.empty() || client_iterator == clients.end()) continue;
 
         int cfd = (*client_iterator).sockfd;
-        //TODO: handle one packet from client.
 
         int count = recv(cfd, &cbuffer, 2, MSG_PEEK);
         if (count < 2) {
@@ -146,7 +144,7 @@ int Server::run() {
 
         int length = readVarInt(cfd);
         std::cout << length << std::endl;
-        recv(cfd, &cbuffer, length, 0);
+        recv(cfd, &cbuffer, length, MSG_PEEK);
 
         std::cout << "Raw Packet: ";
         for (int i = 0; i < length; i++) {
@@ -155,74 +153,27 @@ int Server::run() {
             std::cout << ", ";
         }
         std::cout << std::endl;
+
+        int packid = readVarInt(cfd);
+        std::cout << packid << std::endl;
+
+        switch (packid) {
+            case 0x0: // handshake/status ping (why tho?)
+                //if (length == 1) {}
+                int proc_version = readVarInt(cfd);
+                std::string address = readString(cfd);
+                int port = readUShort(cfd);
+                State intent = (State)readVarInt(cfd);
+                std::cout << "Handshake: pv - " << proc_version << ", addr - " << address << ", port - " << port << ", intent - " << intent << std::endl;
+                (*client_iterator).state = intent;
+        }
         
     }
 
     for (Client c : clients) {
         close(c.sockfd);
     }
-    /* old method - kept for notes on packet handling
-    int client_sock;
-    struct sockaddr_storage client_addr;
-    socklen_t addr_size = sizeof(client_addr);
-    client_sock = accept(sock, (struct sockaddr *)&client_addr, &addr_size);
 
-    std::cout << "Client connected!" << std::endl;
-    
-    int max_size = 1024;
-    char buffer[max_size];
-    std::vector<char> bytes;
-    std::vector<char> packet;
-    int packlength;
-
-    while (true) {
-        while (true) { //get full packet into bytes.
-            recv(client_sock, &buffer, max_size, 0);
-            for (int i = 0; i < max_size; i++) {
-                bytes.push_back(buffer[i]);
-                buffer[i] = 0;
-            }
-            packlength = readVarInt(bytes, false);
-            if (bytes.size() >= packlength + 1) { break; }
-        }
-        readVarInt(bytes, true);
-
-        std::copy(bytes.begin(), bytes.begin() + packlength, std::back_inserter(packet));
-        bytes.erase(bytes.begin(), bytes.begin() + packlength);
-
-        std::cout << "Raw Packet: ";
-        for (char c : packet) {
-            std::cout << "0x";
-            printf("%x", c);
-            std::cout << ", ";
-        }
-        std::cout << std::endl;
-
-        //std::cout << "Packet Length: " << readVarInt(packet, true) << std::endl;
-        int packID;
-        packID = readVarInt(packet, true);
-        //std::cout << packID << std::endl;
-        switch (packID) {
-            case 0:
-                std::cout << "Protocol Version: " << readVarInt(packet, true) << std::endl;
-                std::cout << "Hostname: " << readString(packet, true) << std::endl;
-                std::cout << "Port: " << readUShort(packet, true) << std::endl;
-                status = readVarInt(packet, true);
-                std::cout << "Intent (1 - status, 2 - login, 3 - transfer): " << status << std::endl;
-                switch (status) {
-                    case 1:
-                        if (bytes[0] == 0) { //ping & pong
-                            bytes.erase(bytes.begin(), bytes.begin() + 1);
-                            packet.clear();
-                            packet.push_back(0x00);
-                            writeVarInt(packet, strlen(status_str.c_str()));
-
-                        }
-                }
-        }
-    }
-    close(client_sock);
-    */
     close(sock);
     freeaddrinfo(servinfo);
     freeaddrinfo(client_addr);
