@@ -14,6 +14,8 @@ exe = executable(
   'src/cpine.cpp',
   'src/server.hpp',
   'src/server.cpp',
+  'src/client.cpp',
+  'src/client.hpp',
   install : true,
   dependencies : dependencies,
 )
