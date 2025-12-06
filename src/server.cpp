@@ -27,6 +27,16 @@ Server::Server(std::string ip, std::string port) {
     this->port = port;
 }
 
+std::string Server::getStatusString() {
+    players = 0; // configure server status response
+    for (Client c : clients) {
+        if (c.state == LOGIN) ++players;
+    }
+
+    //"{\"version\": {\"name\": \"1.21.8\",\"protocol\": 772},\"players\": {\"max\": 20,\"online\": 0,},\"description\": {\"text\": \"Testing!\"},\"enforcesSecureChat\": false}"
+    return "{\"version\": {\"name\": \""+version+"\",\"protocol\": "+std::to_string(protocol)+"},\"players\": {\"max\": "+std::to_string(max_players)+",\"online\": "+std::to_string(players)+",\"sample\":[{\"name\":\"thinkofdeath\",\"id\":\"4566e69f-c907-48ee-8d71-d7ba5aa00d20\"}]},\"description\": {\"text\": \""+description+"\"}, \"enforcesSecureChat\": false}";
+}
+
 int Server::run() {
     std::cout << "Running on " << this->ip << ":" << this->port;
     
@@ -70,27 +80,33 @@ int Server::run() {
 
     clients.reserve(20);
     
-    std::vector<Client>::iterator client_iterator = clients.begin();
+    //std::vector<Client>::iterator client_iterator = clients.begin();
+    
+    int client_index = 0;
 
     while (true) { //better way, multiple clients
-        clients.emplace_back(accept(sock, (struct sockaddr *)&client_addr, &addr_size), NONE); //try new player
-        if (clients.back().sockfd == -1) { //failed accept or no client
-            clients.pop_back();
-        } else {
+        //std::cout << getStatusString() << std::endl;
+        int csock = accept(sock, (struct sockaddr *)&client_addr, &addr_size);
+        if (csock != -1) {
+            clients.emplace_back(csock, NONE); //try new player
             fcntl(clients.back().sockfd, F_SETFL, O_NONBLOCK);
             std::cout << "New client: " << clients.back().sockfd << std::endl;
         }
         //TODO: tick
         //
-        if (client_iterator == clients.end()) client_iterator = clients.begin(); //loop over clients forever
-        if (clients.empty() || client_iterator == clients.end()) continue;
-
-        int cfd = (*client_iterator).sockfd;
+        //if (client_iterator == clients.end()) client_iterator = clients.begin(); //loop over clients forever
+        if (client_index >= clients.size()) client_index = 0; //new forever loop
+        if (clients.empty()) continue;
+        
+        Client& client = clients[client_index];
+        int cfd = client.sockfd;
 
         int count = recv(cfd, &cbuffer, 2, MSG_PEEK);
         if (count < 2) {
             if (count == 0 || (count < 0 && errno != EAGAIN && errno != EWOULDBLOCK)) {
-                clients.erase(client_iterator);
+                close(cfd);
+                clients.erase(clients.begin() + client_index);
+                std::cout << "Disconnecting Client" << std::endl;
                 //disconnect client, as no data.
             }
             continue;
@@ -112,16 +128,23 @@ int Server::run() {
         std::cout << packid << std::endl;
 
         switch (packid) {
-            case 0x0: // handshake/status ping (why tho?)
-                //if (length == 1) {}
-                int proc_version = readVarInt(cfd);
-                std::string address = readString(cfd);
-                int port = readUShort(cfd);
-                State intent = (State)readVarInt(cfd);
-                std::cout << "Handshake: pv - " << proc_version << ", addr - " << address << ", port - " << port << ", intent - " << intent << std::endl;
-                (*client_iterator).state = intent;
+            case 0x0: // handshake/status ping (why tho?) also many others?
+                if (client.state == STATUS) { //status response send
+                    std::string status = getStatusString();
+                    writeVarInt(cfd, 1 + sizeString(status)); //send packet size
+                    writeVarInt(cfd, 0x0); //packId for status response
+                    writeString(cfd, status);
+                    std::cout << "Sent status" << std::endl;
+                } else {
+                    int proc_version = readVarInt(cfd);
+                    std::string address = readString(cfd);
+                    int port = readUShort(cfd);
+                    State intent = (State)readVarInt(cfd);
+                    std::cout << "Handshake: pv - " << proc_version << ", addr - " << address << ", port - " << port << ", intent - " << intent << std::endl;
+                    client.state = intent;
+                }
         }
-        
+        ++client_index;
     }
 
     for (Client c : clients) {

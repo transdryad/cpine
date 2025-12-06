@@ -1,6 +1,7 @@
 #include <iostream>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <cstring>
 
 #include "src/types.hpp"
 
@@ -17,6 +18,15 @@ int readVarInt(int sockfd) {
         if (!(currentByte & CONTINUE_BIT)) break;
     }
     return value;
+}
+
+int sizeVarInt(int value) {
+    int size = 1;
+    while ((value & ~SEGMENT_BITS) != 0) {
+        value >>= 7;
+        size++;
+    }
+    return size;
 }
 
 void writeVarInt(int sockfd, int value) {
@@ -50,4 +60,14 @@ std::string readString(int sockfd) {
         output += buffer[0];
     }
     return output;
+}
+
+int sizeString(std::string string) {
+    return sizeVarInt(strlen(string.c_str())) + strlen(string.c_str());
+}
+
+void writeString(int sockfd, std::string string) {
+    auto cstr = string.c_str();
+    writeVarInt(sockfd, strlen(cstr));
+    send(sockfd, &cstr, strlen(cstr), 0);
 }
