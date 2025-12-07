@@ -2,7 +2,6 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <cstring>
-#include <stdint.h>
 
 #include "src/types.hpp"
 
@@ -56,17 +55,24 @@ long long readLong(int sockfd) {
     recv(sockfd, &bytes, 8, 0);
     long long value;
     memcpy(&value, bytes, sizeof(value));
-    std::cout << value << std::endl;
+    //std::cout << value << std::endl;
     value = be64toh(value);
-    std::cout << value << std::endl;
+    //std::cout << value << std::endl;
     return value;
 }
 
 void writeLong(int sockfd, long long value) {
-    std::cout << value << std::endl;
+    //std::cout << value << std::endl;
     value = htobe64(value);
-    std::cout << value << std::endl;
-    const char *bytes = reinterpret_cast<char const *>(value);
+    //std::cout << value << std::endl;
+    //char bytes[8] = reinterpret_cast<char[]>(value);
+    char bytes[8];
+    memcpy(bytes, &value, sizeof(value));
+    //const char *bytes = reinterpret_cast<char const *>(value);
+    /*std::cout << "Long to send: " << std::endl;
+    for (int i = 0; i < 8; i++) {
+        printf("%x, ", bytes[i]);
+    } */
     send(sockfd, bytes, 8, 0);
 }
 

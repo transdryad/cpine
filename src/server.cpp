@@ -163,12 +163,11 @@ int Server::run() {
                 break;
             case 0x01: //ping pong
                 if (client.state == STATUS) {
-                    printf("pong\n");
-                    long long val = readLong(cfd);
+                    //printf("pong\n");
                     //printf("%lld", val);
                     writeVarInt(cfd, sizeVarInt(0x01) + 8);
                     writeVarInt(cfd, 0x01); //packID
-                    writeLong(cfd, val);
+                    writeLong(cfd, readLong(cfd));
                     disconnectPlayer(client_index);
                 }
                 break;

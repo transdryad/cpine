@@ -24,7 +24,7 @@ void writeVarInt(int sockfd, int value);
 int readUShort(int sockfd);
 
 long long readLong(int sockfd);
-void writeLong(int sockfd, long long native);
+void writeLong(int sockfd, long long value);
 
 std::string readString(int sockfd);
 int sizeString(std::string string);
