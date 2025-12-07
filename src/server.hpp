@@ -16,5 +16,6 @@ class Server {
         std::string description = "Testing!";
         //std::string status_str = "{\"version\": {\"name\": \"1.21.8\",\"protocol\": 772},\"players\": {\"max\": 20,\"online\": 0,},\"description\": {\"text\": \"Testing!\"]},\"enforcesSecureChat\": false}";
         std::string getStatusString();
+        void disconnectPlayer(int index);
         std::vector<Client> clients;
 };

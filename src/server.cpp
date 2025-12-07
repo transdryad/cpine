@@ -35,6 +35,17 @@ std::string Server::getStatusString() {
 
     //"{\"version\": {\"name\": \"1.21.8\",\"protocol\": 772},\"players\": {\"max\": 20,\"online\": 0,},\"description\": {\"text\": \"Testing!\"},\"enforcesSecureChat\": false}"
     return "{\"version\": {\"name\": \""+version+"\",\"protocol\": "+std::to_string(protocol)+"},\"players\": {\"max\": "+std::to_string(max_players)+",\"online\": "+std::to_string(players)+",\"sample\":[{\"name\":\"thinkofdeath\",\"id\":\"4566e69f-c907-48ee-8d71-d7ba5aa00d20\"}]},\"description\": {\"text\": \""+description+"\"}, \"enforcesSecureChat\": false}";
+    //std::string val = "";
+    //for (int i = 0; i < 227; i++) {
+    //    val += "0";
+    //}
+    //return val;
+}
+
+void Server::disconnectPlayer(int index) {
+    close(clients[index].sockfd);
+    clients.erase(clients.begin() + index);
+    std::cout << "Disconnecting Client" << std::endl;
 }
 
 int Server::run() {
@@ -104,11 +115,17 @@ int Server::run() {
         int count = recv(cfd, &cbuffer, 2, MSG_PEEK);
         if (count < 2) {
             if (count == 0 || (count < 0 && errno != EAGAIN && errno != EWOULDBLOCK)) {
-                close(cfd);
-                clients.erase(clients.begin() + client_index);
-                std::cout << "Disconnecting Client" << std::endl;
+                disconnectPlayer(client_index);
                 //disconnect client, as no data.
             }
+            continue;
+        }
+        //printf("%x, %x\n", cbuffer[0], cbuffer[1]);
+        if ((cbuffer[0] & 0xFE) == 0xFE && cbuffer[1] == 0x01) { //legacy ping
+            std::cout << "Received Legacy Server Ping!" << std::endl;
+            unsigned char kick = 0xFF;
+            send(cfd, &kick, 1, 0);
+            disconnectPlayer(client_index);
             continue;
         }
 
@@ -128,7 +145,7 @@ int Server::run() {
         std::cout << packid << std::endl;
 
         switch (packid) {
-            case 0x0: // handshake/status ping (why tho?) also many others?
+            case 0x00: // handshake/status ping (why tho?) also many others?
                 if (client.state == STATUS) { //status response send
                     std::string status = getStatusString();
                     writeVarInt(cfd, 1 + sizeString(status)); //send packet size
@@ -143,6 +160,18 @@ int Server::run() {
                     std::cout << "Handshake: pv - " << proc_version << ", addr - " << address << ", port - " << port << ", intent - " << intent << std::endl;
                     client.state = intent;
                 }
+                break;
+            case 0x01: //ping pong
+                if (client.state == STATUS) {
+                    printf("pong\n");
+                    long long val = readLong(cfd);
+                    //printf("%lld", val);
+                    writeVarInt(cfd, sizeVarInt(0x01) + 8);
+                    writeVarInt(cfd, 0x01); //packID
+                    writeLong(cfd, val);
+                    disconnectPlayer(client_index);
+                }
+                break;
         }
         ++client_index;
     }

@@ -2,6 +2,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <cstring>
+#include <stdint.h>
 
 #include "src/types.hpp"
 
@@ -50,6 +51,25 @@ int readUShort(int sockfd) {
     return (int)native;
 }
 
+long long readLong(int sockfd) {
+    char bytes[8];
+    recv(sockfd, &bytes, 8, 0);
+    long long value;
+    memcpy(&value, bytes, sizeof(value));
+    std::cout << value << std::endl;
+    value = be64toh(value);
+    std::cout << value << std::endl;
+    return value;
+}
+
+void writeLong(int sockfd, long long value) {
+    std::cout << value << std::endl;
+    value = htobe64(value);
+    std::cout << value << std::endl;
+    const char *bytes = reinterpret_cast<char const *>(value);
+    send(sockfd, bytes, 8, 0);
+}
+
 std::string readString(int sockfd) {
     int length = readVarInt(sockfd);
     std::string output = "";
@@ -69,5 +89,8 @@ int sizeString(std::string string) {
 void writeString(int sockfd, std::string string) {
     auto cstr = string.c_str();
     writeVarInt(sockfd, strlen(cstr));
-    send(sockfd, &cstr, strlen(cstr), 0);
+    std::cout << strlen(cstr) << ": " << cstr << std::endl;
+    if (send(sockfd, cstr, strlen(cstr), 0) < strlen(cstr)) {
+        exit(1);
+    } 
 }
