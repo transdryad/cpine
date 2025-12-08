@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 enum State {
     NONE,
     STATUS,
@@ -11,5 +13,6 @@ class Client {
     public:
         int sockfd;
         State state;
+        std::string username  = "";
         Client(int sockfd, State state);
 };

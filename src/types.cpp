@@ -75,7 +75,16 @@ void writeLong(int sockfd, long long value) {
     } */
     send(sockfd, bytes, 8, 0);
 }
+/*
+struct uint128 readUUID(int sockfd) {
+    struct uint128 value;
 
+}
+
+void writeUUID(int sockfd, struct uint128 value) {
+    
+}
+*/
 std::string readString(int sockfd) {
     int length = readVarInt(sockfd);
     std::string output = "";

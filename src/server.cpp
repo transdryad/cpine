@@ -169,6 +169,8 @@ int Server::run() {
                     writeVarInt(cfd, 0x01); //packID
                     writeLong(cfd, readLong(cfd));
                     disconnectPlayer(client_index);
+                } else if (client.state == LOGIN) { //login start
+                    
                 }
                 break;
         }
