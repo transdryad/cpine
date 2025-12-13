@@ -12,8 +12,11 @@ class Server {
         int init();
         int run();
         int sock;
-        int accept_client();
+        int acceptClient();
+        bool checkLegacyPing();
+        bool checkDisconnect();
         bool debug;
+        int handlePacket(int packid);
         int client_index = 0;
         struct addrinfo *client_addr;
         std::string version = "1.21.10";
@@ -23,6 +26,6 @@ class Server {
         std::string description = "Testing!";
         //std::string status_str = "{\"version\": {\"name\": \"1.21.8\",\"protocol\": 772},\"players\": {\"max\": 20,\"online\": 0,},\"description\": {\"text\": \"Testing!\"]},\"enforcesSecureChat\": false}";
         std::string getStatusString();
-        void disconnectPlayer(int index);
+        void disconnectClient();
         std::vector<Client> clients;
 };
