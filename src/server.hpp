@@ -5,10 +5,17 @@
 
 class Server {
     public:
-        Server(std::string ip, std::string port);
+        Server(std::string ip, std::string port, bool debug);
+        ~Server();
         std::string ip;
         std::string port;
+        int init();
         int run();
+        int sock;
+        int accept_client();
+        bool debug;
+        int client_index = 0;
+        struct addrinfo *client_addr;
         std::string version = "1.21.10";
         int protocol = 773;
         int max_players = 20;

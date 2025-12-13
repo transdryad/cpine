@@ -104,7 +104,7 @@ int sizeString(std::string string) {
 void writeString(int sockfd, std::string string) {
     auto cstr = string.c_str();
     writeVarInt(sockfd, strlen(cstr));
-    std::cout << strlen(cstr) << ": " << cstr << std::endl;
+    //std::cout << strlen(cstr) << ": " << cstr << std::endl;
     if (send(sockfd, cstr, strlen(cstr), 0) < strlen(cstr)) {
         exit(1);
     } 
